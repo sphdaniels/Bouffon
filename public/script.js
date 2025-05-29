@@ -1,19 +1,36 @@
+let messageCount = 0;
+let enigmaSolved = false;
+
 async function sendMessage() {
-  const input = document.getElementById("message");
-  const message = input.value.trim();
+  const message = document.getElementById("message").value;
   if (!message) return;
+
   appendMessage("Vous", message);
-  input.value = "";
+  document.getElementById("message").value = "";
+  messageCount++;
+
   const response = await fetch("/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message })
+    body: JSON.stringify({
+      message: message,
+      count: messageCount,
+      solved: enigmaSolved
+    }),
   });
+
   const data = await response.json();
   appendMessage("Bouffon", data.reply);
+
+  if (data.reply.includes("Voici ce que je suis sensé te délivrer")) {
+    enigmaSolved = true;
+  }
 }
-function appendMessage(sender, text) {
+
+function appendMessage(sender, message) {
   const chat = document.getElementById("chat");
-  chat.innerHTML += `\n\n<b>${sender} :</b> ${text}`;
+  const messageElement = document.createElement("p");
+  messageElement.innerHTML = `<strong>${sender} :</strong><br>${message}`;
+  chat.appendChild(messageElement);
   chat.scrollTop = chat.scrollHeight;
 }
