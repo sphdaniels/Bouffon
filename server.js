@@ -23,16 +23,20 @@ const openai = new OpenAI({
 
 let enigmaAsked = false;
 let enigmaSolved = false;
+let messageCount = 0;
 
 app.post("/chat", async (req, res) => {
   const message = req.body.message;
+  messageCount++;
+
   let systemPrompt = "";
 
-  if (!enigmaAsked && req.body.count >= 15 && req.body.count <= 20) {
+  if (!enigmaAsked && messageCount === 15) {
     enigmaAsked = true;
     systemPrompt = "Tu es un bouffon cruel. Pose la devinette 'combien font 0+0 ?'.";
   } else if (enigmaAsked && !enigmaSolved) {
-    if (["la tête à toto", "la tete a toto"].includes(message.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, ""))) {
+    const normalized = message.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    if (["la tête à toto", "la tete a toto"].includes(normalized)) {
       enigmaSolved = true;
       systemPrompt = "Tu redeviens sarcastique et tu dis : 'Bravo. Voici ce que je suis sensé te délivrer, pour une fois avec sérieux : 5'";
     } else {
