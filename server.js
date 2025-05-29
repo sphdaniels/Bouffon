@@ -6,7 +6,6 @@ import OpenAI from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 
-
 config();
 
 const __filename = fileURLToPath(import.meta.url);
