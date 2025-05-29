@@ -21,23 +21,18 @@ const openai = new OpenAI({
   project: process.env.OPENAI_PROJECT_ID,
 });
 
-let enigmaAsked = false;
-let enigmaSolved = false;
-let messageCount = 0;
-
 app.post("/chat", async (req, res) => {
   const message = req.body.message;
-  messageCount++;
+  const count = req.body.count || 0;
+  const solved = req.body.solved || false;
 
   let systemPrompt = "";
 
-  if (!enigmaAsked && messageCount === 15) {
-    enigmaAsked = true;
+  if (count === 15) {
     systemPrompt = "Tu es un bouffon cruel. Pose la devinette 'combien font 0+0 ?'.";
-  } else if (enigmaAsked && !enigmaSolved) {
+  } else if (count > 15 && !solved) {
     const normalized = message.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-    if (["la tête à toto", "la tete a toto"].includes(normalized)) {
-      enigmaSolved = true;
+    if (["la tete a toto", "la tête à toto"].includes(normalized)) {
       systemPrompt = "Tu redeviens sarcastique et tu dis : 'Bravo. Voici ce que je suis sensé te délivrer, pour une fois avec sérieux : 5'";
     } else {
       systemPrompt = "Tu es moqueur et cruel. Tu te moques de la mauvaise réponse et tu redis : 'Combien font 0+0 ?'";
