@@ -6,13 +6,6 @@ import OpenAI from "openai";
 import path from "path";
 import { fileURLToPath } from "url";
 
-import express from "express";
-import bodyParser from "body-parser";
-import cors from "cors";
-import { config } from "dotenv";
-import OpenAI from "openai";
-import path from "path";
-import { fileURLToPath } from "url";
 
 config();
 
