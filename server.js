@@ -1,3 +1,4 @@
+
 import express from "express";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -21,78 +22,49 @@ const openai = new OpenAI({
   project: process.env.OPENAI_PROJECT_ID,
 });
 
-const userStates = {};
-
-function normalize(str) {
-  return str
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // accents
-    .replace(/[^a-z ]/g, "") // remove punctuation
-    .trim();
-}
+// Middleware pour reset session à chaque nouvelle visite
+app.use((req, res, next) => {
+  if (!req.session) req.session = {};
+  next();
+});
 
 app.post("/chat", async (req, res) => {
   const message = req.body.message;
-  const sessionId = req.body.sessionId;
+  const count = req.body.count;
+  const session = req.session;
 
-  if (!userStates[sessionId]) {
-    userStates[sessionId] = {
-      count: 0,
-      enigmaAsked: false,
-      enigmaSolved: false,
-      lastWrongGuessIndex: null,
-    };
-  }
-
-  const userState = userStates[sessionId];
-  userState.count += 1;
+  // Initialisation enigma si besoin
+  if (session.enigmaAsked === undefined) session.enigmaAsked = false;
+  if (session.enigmaSolved === undefined) session.enigmaSolved = false;
+  if (session.lastWrongGuessIndex === undefined) session.lastWrongGuessIndex = null;
 
   let systemPrompt = "";
 
-  const msgNorm = normalize(message);
+  // Conditions
+  const userMsg = message.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-  // S'il a résolu l'énigme
-  if (userState.enigmaAsked && !userState.enigmaSolved &&
-      (msgNorm.includes("la tete a toto") || msgNorm.includes("la tête à toto"))) {
-    userState.enigmaSolved = true;
-    systemPrompt = "Tu dis simplement : '5'. Ensuite tu redeviens un bouffon cruel, moqueur, à l’humour noir dérangeant. Tu ne redis plus jamais la devinette.";
-  }
+  const isCorrectAnswer = ["la tete a toto", "la tête à toto"].includes(userMsg);
 
-  // S’il n’a pas encore répondu juste
-  else if (userState.enigmaAsked && !userState.enigmaSolved) {
-    if (
-      userState.lastWrongGuessIndex === null ||
-      userState.count - userState.lastWrongGuessIndex === 2
-    ) {
-      userState.lastWrongGuessIndex = userState.count;
-      systemPrompt = "Tu te moques méchamment de la mauvaise réponse sans dire la solution, puis tu poses exactement la même devinette : 'Combien font 0+0 ?'.";
+  if (!session.enigmaAsked && count === 15) {
+    session.enigmaAsked = true;
+    systemPrompt = "Tu es un bouffon cruel. Pose la devinette 'Combien font 0+0 ?' sans donner d’indice ni de jugement.";
+  } else if (session.enigmaAsked && !session.enigmaSolved) {
+    if (isCorrectAnswer) {
+      session.enigmaSolved = true;
+      systemPrompt = "Tu redeviens sarcastique et tu dis : 'Bravo. Voici ce que je suis censé te délivrer, pour une fois avec sérieux : 5'";
     } else {
-      systemPrompt = "Tu ignores sa tentative ou continues à le ridiculiser, mais tu ne poses pas encore la devinette.";
+      session.lastWrongGuessIndex = count;
+      systemPrompt = "Tu es moqueur et cruel. Tu te moques de la mauvaise réponse et tu redis, sans rien dévoiler : 'Combien font 0+0 ?'";
     }
-  }
-
-  // Si on est entre le 15ᵉ et 20ᵉ message et que la devinette n’a jamais été posée
-  else if (!userState.enigmaAsked && userState.count === 15) {
-    userState.enigmaAsked = true;
-    systemPrompt = "Tu poses une devinette avec cruauté. La question est : 'Combien font 0+0 ?'. Ne donne pas la réponse. Attends qu’il dise une variante de 'la tête à Toto'.";
-  }
-
-  // Si tout est normal après énigme résolue
-  else if (userState.enigmaSolved) {
-    systemPrompt = "Tu es un bouffon grotesque, cruel, à l’humour noir. Tu restes dans ce personnage à chaque réponse.";
-  }
-
-  // Par défaut
-  else {
-    systemPrompt = "Tu es un bouffon moqueur, cruel et absurde, avec un humour noir. Tu ignores les règles de bienséance. Tu n’es jamais neutre ni sympathique.";
+  } else {
+    systemPrompt = "Tu es un bouffon sarcastique, avec un humour noir. Réponds aux messages de façon méchante et absurde.";
   }
 
   const completion = await openai.chat.completions.create({
     model: "gpt-4",
     messages: [
       { role: "system", content: systemPrompt },
-      { role: "user", content: message },
+      { role: "user", content: message }
     ],
   });
 
@@ -103,6 +75,4 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "index.html"));
 });
 
-app.listen(3000, () => {
-  console.log("✅ Serveur lancé sur le port 3000");
-});
+app.listen(3000, () => console.log("✅ Serveur lancé sur le port 3000"));
